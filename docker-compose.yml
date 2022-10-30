@@ -19,7 +19,7 @@ services:
       - "443:443"
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
-      - "./letsencrypt:/etc/letsencrypt/live/petrolette.space"
+      - "./letsencrypt:/letsencrypt"
     labels:
       - traefik.http.routers.to-https.rule=HostRegexp(`{host:.+}`)
       - traefik.http.routers.to-https.entrypoints=http
