@@ -4,6 +4,7 @@ services:
   traefik:
     image: "traefik:latest"
     container_name: "traefik"
+    restart: unless-stopped
     command:
       - --log.level=INFO
       - --api.dashboard=true
@@ -37,9 +38,10 @@ services:
 
   petrolette:
     image: petrolette
+    container_name: "petrolette"
+    restart: unless-stopped
     build:
-      dockerfile: petrolette.Dockerfile
-      context: .
+      context: petrolette
     labels:
       - traefik.http.services.petrolette.loadbalancer.server.port=8000
       - traefik.http.routers.petrolette.rule=Host(`petrolette.${DOMAIN}`)
