@@ -1,34 +1,48 @@
-version: '3'
+version: '4'
 
 services:
   traefik:
-    image: "traefik:v2.4"
+    image: "traefik:latest"
     container_name: "traefik"
     command:
-      #- "--log.level=DEBUG"
-      - "--api.insecure=true"
-      - "--providers.docker=true"
-      - "--providers.docker.exposedbydefault=false"
-      - "--entrypoints.websecure.address=:443"
-      - "--certificatesresolvers.myresolver.acme.tlschallenge=true"
-      #- "--certificatesresolvers.myresolver.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/directory"
-      - "--certificatesresolvers.myresolver.acme.email=mail@example.com"
-      - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
+      - --log.level=INFO
+      - --api.dashboard=true
+      - --providers.docker=true
+      - --entrypoints.http.address=:80
+      - --entrypoints.https.address=:443
+
+      - --certificatesresolvers.letsencrypt.acme.tlschallenge=true
+      - --certificatesresolvers.letsencrypt.acme.email=${EMAIL}
+      - --certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json
     ports:
-      # The HTTP port
+      - "80:80"
       - "443:443"
-      # The Web UI (enabled by --api.insecure=true)
-      - "8080:8080"
     volumes:
-      - "./letsencrypt:/letsencrypt"
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "./letsencrypt:/etc/letsencrypt/live/petrolette.space"
+    labels:
+      - traefik.http.routers.to-https.rule=HostRegexp(`{host:.+}`)
+      - traefik.http.routers.to-https.entrypoints=http
+      - traefik.http.routers.to-https.middlewares=to-https
+      
+      - traefik.http.routers.dashboard.rule=Host(`traefik.${DOMAIN}`)
+      - traefik.http.routers.dashboard.service=api@internal
+      - traefik.http.routers.dashboard.entrypoints=https
+      - traefik.http.routers.dashboard.middlewares=auth
+      - traefik.http.routers.dashboard.tls=true
+      - traefik.http.routers.dashboard.tls.certresolver=letsencrypt
+     
+      - traefik.http.middlewares.to-https.redirectscheme.scheme=https
+      - traefik.http.middlewares.auth.basicauth.users=${TRAEFIK_USER}:${TRAEFIK_PASSWORD_HASH}
 
   petrolette:
     image: petrolette
-    ports:
-      - "8000:8000"
+    build:
+      dockerfile: petrolette.Dockerfile
+      context: .
     labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.whoami.rule=Host(`example.com`)"
-      - "traefik.http.routers.whoami.entrypoints=websecure"
-      - "traefik.http.routers.whoami.tls.certresolver=myresolver"
+      - traefik.http.services.petrolette.loadbalancer.server.port=8000
+      - traefik.http.routers.petrolette.rule=Host(`petrolette.${DOMAIN}`)
+      - traefik.http.routers.petrolette.entrypoints=https
+      - traefik.http.routers.petrolette.tls=true
+      - traefik.http.routers.petrolette.tls.certresolver=letsencrypt
